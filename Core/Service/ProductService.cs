@@ -1,0 +1,64 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using AutoMapper;
+using DomainLayer.Contracts;
+using DomainLayer.Models;
+using ServiceAbstraction;
+using Services.Specifications;
+using Shared;
+using Shared.DataTransferObjects;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+
+namespace Service
+{
+    internal class ProductService(IUnitOfWork _unitOfWork, IMapper _mapper) : IProductService
+    {
+        public async Task<IEnumerable<BrandDto>> GetAllBrandsAsync()
+        {
+            var Repo = _unitOfWork.GetRepository<ProductBrand, int>();
+            var Brands = await Repo.GetAllAsync();
+            var BrandsDto = _mapper.Map<IEnumerable<ProductBrand>,IEnumerable<BrandDto>>(Brands);   
+            return BrandsDto;
+            
+        }
+
+        public async Task<PaginatedResult<ProductDto>> GetAllProductsAsync(ProductQueryParams queryParams)
+        {
+            var Repo = _unitOfWork.GetRepository<Product, int>();
+
+            var Specifications = new ProductWithBrandAndTypeSpecifications(queryParams);
+
+            var AllProducts = await Repo.GetAllAsync( Specifications);
+
+            var Data = _mapper.Map<IEnumerable<Product>, IEnumerable<ProductDto>>(AllProducts);
+
+            var ProductCount = AllProducts.Count();
+
+            var CountSpec = new ProductCountSpecification(queryParams);
+
+            var TotalCount = await Repo.CountAsync(CountSpec);
+
+            return new PaginatedResult<ProductDto>( queryParams.PageIndex, ProductCount, TotalCount, Data);
+
+
+
+        }
+
+        public async Task<IEnumerable<TypeDto>> GetAllTypesAsync()
+        {
+            var Types = await _unitOfWork.GetRepository <ProductType, int>().GetAllAsync();
+            var TypesDto =_mapper.Map<IEnumerable<ProductType>,IEnumerable<TypeDto>>(Types);
+            return TypesDto;
+        }
+
+        public async Task<ProductDto> GetProductAsync(int Id)
+        {
+            var specifications = new ProductWithBrandAndTypeSpecifications(Id);
+            var Product = await _unitOfWork.GetRepository<Product,int>().GetByIdAsync(specifications);
+            return _mapper.Map<Product,ProductDto>(Product);
+        }
+    }
+}
